@@ -3,50 +3,148 @@ var transaction = require('./lib/transaction/index');
 var {RpcClient}  = require('tendermint');
 var  app = express();
 var axios = require('axios');
+const { Keypair } = require('stellar-base');
 
 
 const ACCOUNT_INFO_API = 'tx_search?query=%22account=%27GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S%27%22';
 const ACCOUNT_PUBLIC_KEY = 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S';
-const ACCOUNT_SECRET_KEY = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
+const ACCOUNT_SECRET_KEY          = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
+const PAYMENT_ADDRESS_FRIEND_TEST = 'GALFOH6JQ3KCEVCPVFXI4CKXXUAOZBIYHD2LVGYSO4MXBFGNC6IC652D';
 const PUBLIC_NODE_URL = "https://komodo.forest.network/";
 app.listen(3000);
-app.get('/',function (req,res) {
 
+app.get('/',function (req,res) {
+    res.send({"code" : 1});
 
 });
 
+
+
 app.get('/create_account', function (req, res) {
+    var getLastSequcencePromise =  getLastSequence();
+    getLastSequcencePromise.then(function (lastSequence) {
+        createAccount(lastSequence).then(result =>{
+            console.log(result);
+            res.send(result);
+        })
+    });
+});
+
+app.get('/payment', function (req, res) {
+    var getLastSequcencePromise =  getLastSequence();
+    getLastSequcencePromise.then(function (lastSequence) {
+        payment(lastSequence).then(result =>{
+            res.send(result);
+        })
+    });
+});
+
+app.get('/post', function (req, res) {
+    var getLastSequcencePromise =  getLastSequence();
+    getLastSequcencePromise.then(function (lastSequence) {
+        postConent(lastSequence).then(result =>{
+            res.send(result);
+        })
+    });});
+
+
+function createAccount(lastSequence){
+    const key = Keypair.random();
+    let address = key.publicKey();
+
     let tx = {
         version: 1,
-        sequence: 1,
+        sequence: lastSequence + 1,
         memo: Buffer.from('memo test'),
         operation: 'create_account',
         params: {
-            address: 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S',
+            address:address,
         }
     };
 
+    transaction.sign(tx, 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR');
+    transaction.sign(tx,ACCOUNT_SECRET_KEY);
+    var data_encoding = '0x' + transaction.encode(tx).toString('hex');
+    var url = 'https://komodo.forest.network/broadcast_tx_commit?tx=' + data_encoding;
+
+    return new Promise((resolve, reject) =>{
+            axios.get(url).then(response=>{
+                resolve(response.data);
+            }).catch(err =>
+                reject(err)
+            )
+        }
+    );
+}
+function payment(lastSequence){
+    let tx = {
+        version: 1,
+        sequence: lastSequence + 1,
+        memo: Buffer.from('Chuyển tiền cho bên '),
+        operation: 'payment',
+        params: {
+            address: PAYMENT_ADDRESS_FRIEND_TEST,
+            amount: 100,
+        }
+    };
 
     transaction.sign(tx, 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR');
-   transaction.sign(tx,ACCOUNT_SECRET_KEY);
- var data_encoding = '0x' + transaction.encode(tx).toString('hex');
+    transaction.sign(tx,ACCOUNT_SECRET_KEY);
+    var data_encoding = '0x' + transaction.encode(tx).toString('hex');
+    var url = 'https://komodo.forest.network/broadcast_tx_commit?tx=' + data_encoding;
 
- var url = URL
+    return new Promise((resolve, reject) =>{
+            axios.get(url).then(response=>{
+                resolve(response.data);
+            }).catch(err =>
+                reject(err)
+            )
+        }
+    );
+}
+function getLastSequence(){
+    return new Promise(((resolve, reject) =>
+            axios.get('https://komodo.forest.network/tx_search?query=%22account=%27' + ACCOUNT_PUBLIC_KEY + '%27%22')
+                .then(function (response) {
+                    let txs = response.data.result.txs;
+                    let lastTx = txs[txs.length -1].tx;
+                    let lastTransaction = transaction.decode(Buffer.from(lastTx,'base64'));
 
-});
+                    resolve(lastTransaction.sequence);
+                }).catch(err =>{
+                reject(err);
+            })
+    ));
 
-app.get('/test', function (req,res) {
-    const  axios = require('axios');
-    axios.get("https://komodo.forest.network/tx_search?query=%22account=%27GAO4J5RXQHUVVONBDQZSRTBC42E3EIK66WZA5ZSGKMFCS6UNYMZSIDBI%27%22")
-        .then(function (response) {
-            var txs = response.data.result.txs;
-            var transactions = [];
-            for(var txIndex = 0; txIndex < txs.length; txIndex++){
-                var tx = txs[txIndex];
-                var transactionObject = transaction.decode(Buffer.from(tx.tx, 'base64'));
-                transactions.push(transactionObject);
-            }
-            res.send(transactions);
-        })
-});
+}
+function postConent(lastSequence){
+    let tx = {
+        version: 1,
+        sequence: lastSequence + 1,
+        memo: Buffer.from('Đăng bài'),
+        operation: 'post',
+        params: {
+            content:{
+                type: 1,
+                text: '',
+            },
+            key:[]
+        }
+    };
+
+    transaction.sign(tx, 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR');
+    transaction.sign(tx,ACCOUNT_SECRET_KEY);
+    var data_encoding = '0x' + transaction.encode(tx).toString('hex');
+    var url = 'https://komodo.forest.network/broadcast_tx_commit?tx=' + data_encoding;
+
+    return new Promise((resolve, reject) =>{
+            axios.get(url).then(response=>{
+                resolve(response.data);
+            }).catch(err =>
+                reject(err)
+            )
+        }
+    );
+}
+
 
