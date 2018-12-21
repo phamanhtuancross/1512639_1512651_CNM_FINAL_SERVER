@@ -10,7 +10,12 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.18.0",
+    "base32": "0.0.6",
+    "base32.js": "^0.1.0",
     "express": "^4.16.4",
+    "jquery": "^3.3.1",
+    "mongoose": "^5.4.0",
+    "nodemon": "^1.18.9",
     "stellar-base": "^0.10.0",
     "tendermint": "^3.4.0",
     "varstruct": "^6.1.2"
