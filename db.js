@@ -8,11 +8,17 @@ const blockChainInfosSchema = new mongoose.Schema({
     operation: String,
     height: Number,
     block_id: Object,
-    block: [],
+    block: Object,
 });
 
 const accountsSchema = new mongoose.Schema({
-    public_key: String
+    public_key: String,
+    displayName: String,
+    posts: [],
+    followings: [],
+    avatar: Buffer,
+    payments:[],
+
 });
 
 const nodeInfosSchema = new mongoose.Schema({

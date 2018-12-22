@@ -17,7 +17,7 @@ const ACCOUNT_PUBLIC_KEY = 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CY
 const ACCOUNT_SECRET_KEY          = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
 const PAYMENT_ADDRESS_FRIEND_TEST = 'GALFOH6JQ3KCEVCPVFXI4CKXXUAOZBIYHD2LVGYSO4MXBFGNC6IC652D';
 const PUBLIC_NODE_URL = "https://komodo.forest.network/";
-let client = RpcClient('wss://gorilla.forest.network:443');
+let client = RpcClient('wss://komodo.forest.network:443');
 const UpdateAccountParams = vstruct([
     { name: 'key', type: vstruct.VarString(vstruct.UInt8) },
     { name: 'value', type: vstruct.VarBuffer(vstruct.UInt16BE) },
@@ -33,8 +33,9 @@ const Followings = vstruct([
 ]);
 
 app.listen(3000);
-async function getListBlockByHeight(height){
 
+async function getListBlockByHeight(height){
+    console.log(height);
         db.nodeInfos.create({
             height: height,
         });
@@ -43,7 +44,6 @@ async function getListBlockByHeight(height){
         for(var i = 0; i <= height; i ++) {
             try {
             var result = await client.block({height: i});
-            //console.log(result);
             if(result !== null) {
                 let block_id = result.block_meta.block_id;
                 let data = result.block.data;
@@ -97,7 +97,9 @@ async function getListBlockByHeight(height){
                                                 var address = base32.encode(addressesBuffer[addressIndex]);
                                                 addresses.push(address);
                                             }
-                                            transactionObject.params.address = addresses;
+                                            followings.addresses = addresses;
+                                            transactionObject.params.value = followings;
+                                            console.log(transactionObject);
                                             break;
                                         default:
                                             break;
@@ -130,12 +132,21 @@ async function getListBlockByHeight(height){
 }
 
 async function  connectNode(){
-    client.abciInfo().then(res => {
-        let height = res.response.last_block_height;
-        getListBlockByHeight(height);
 
-    });
-};
+    console.log('calling function connectNode()...');
+    try {
+        client.abciInfo().then(res => {
+            console.log(res);
+            let height = res.response.last_block_height;
+            console.log('heigth' + height);
+            getListBlockByHeight(height);
+
+        });
+    }
+    catch (e) {
+        console.log('err');
+    }
+}
 
 //connectNode();
 
@@ -146,18 +157,8 @@ app.get('/',function (req,res) {
 });
 
 async function getAccountInfoByKey(acoountPublicKey){
-    try {
-        var result = await client.txSearch({
-            query: "account=GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S",
-        });
-        console.log(result);
-    }
-    catch (e) {
-        console.log('errr');
-    }
-}
 
-getAccountInfoByKey();
+}
 
 async function getFriendPosts(){
 
@@ -217,8 +218,89 @@ app.get('/post', function (req, res) {
         postConent(lastSequence).then(result =>{
             res.send(result);
         })
-    });}
-    );
+    });
+});
+
+const listenForNewBlockFromNode = () =>{
+    client.subscribe({query: 'tm.envent=\'NewBlock\''}, (block) =>{
+       console.log(block);
+    });
+};
+
+
+const updateAccountsCollection = ()=>{
+    db.blockChainInfos.find({operation: {$in: ['post','update_account','payment']}}, function (err, elements) {
+        for(var eleIndex = 0; eleIndex < elements.length; eleIndex++){
+            let block = elements[eleIndex].block;
+            let accountPublicKey = block.account;
+
+            switch (block.operation) {
+                case "update_account":
+                    let key = block.params.key;
+                    let value = block.params.value;
+                    switch (key) {
+                        case "name":
+                                var conditions = { public_key: accountPublicKey };
+                                var update = { displayName: value};
+                                var options = { multi: true };
+
+                                db.accounts.update(conditions, update, options, (err,numAffected) =>{
+                                });
+                            break;
+                        case "followings":
+                            var conditions = { public_key: accountPublicKey };
+                            var update = { followings: value};
+                            var options = { multi: true };
+
+                            db.accounts.update(conditions, update, options, (err,numAffected) =>{
+                            });
+                            break;
+                        case "picture":
+                            var conditions = { public_key: accountPublicKey };
+                            var update = { avatar: value};
+                            var options = { multi: true };
+
+                            db.accounts.update(conditions, update, options, (err,numAffected) =>{
+                            });
+                            break;
+                    }
+                    break;
+                case "post":
+                    var conditions = { public_key: accountPublicKey };
+                    var update = { posts: block.params.content};
+                    var options = { multi: true };
+
+                    db.accounts.update(conditions, update, options, (err,numAffected) =>{
+                    });
+                    break;
+                case "payment":
+                    var conditions = { public_key: accountPublicKey };
+                    var update = { payments: block.params};
+                    var options = { multi: true };
+
+
+                    //update history
+                    db.accounts.update(conditions, update, options, (err,numAffected) =>{
+                        db.accounts.findOne(conditions, (err,doc)=>{
+                            console.log(doc);
+                        })
+                    });
+
+                    //update bandwidth
+
+                    //update energy
+                    break;
+                default:
+                    break;
+            }
+        }
+    });
+};
+
+updateAccountsCollection();
+//db.accounts.find({},(err,doc)=> console.log(doc));
+
+
 app.get('/update_account', function (req,res) {
     var getLastSequcencePromise =  getLastSequence();
     getLastSequcencePromise.then(function (lastSequence) {
