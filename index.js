@@ -9,6 +9,8 @@ const vstruct = require('varstruct');
 const mongoose = require('mongoose');
 const base32 = require('base32.js');
 const $ = require('jquery');
+const HashSet = require('hashset');
+const AppInit = require('./app-init');
 
 
 const ACCOUNT_INFO_API = 'tx_search?query=%22account=%27GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S%27%22';
@@ -17,7 +19,7 @@ const ACCOUNT_PUBLIC_KEY = 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CY
 const ACCOUNT_SECRET_KEY          = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
 const PAYMENT_ADDRESS_FRIEND_TEST = 'GALFOH6JQ3KCEVCPVFXI4CKXXUAOZBIYHD2LVGYSO4MXBFGNC6IC652D';
 const PUBLIC_NODE_URL = "https://komodo.forest.network/";
-let client = RpcClient('wss://komodo.forest.network:443');
+let client = RpcClient('wss://dragonfly.forest.network:443');
 const UpdateAccountParams = vstruct([
     { name: 'key', type: vstruct.VarString(vstruct.UInt8) },
     { name: 'value', type: vstruct.VarBuffer(vstruct.UInt16BE) },
@@ -34,122 +36,12 @@ const Followings = vstruct([
 
 app.listen(3000);
 
-async function getListBlockByHeight(height){
-    console.log(height);
-        db.nodeInfos.create({
-            height: height,
-        });
 
+// db.accounts.findOne({public_key: 'GAJQ47RMDTXYTCBMMW4A4DUMTB5RQLTGQZDMMABW6RTQJGKINJ4JTRTP'}, (err,doc) =>
+// console.log(doc.payments[0])
+// );
 
-        for(var i = 0; i <= height; i ++) {
-            try {
-            var result = await client.block({height: i});
-            if(result !== null) {
-                let block_id = result.block_meta.block_id;
-                let data = result.block.data;
-                if (data && data.txs != null) {
-                    let txs = data.txs;
-                    if(txs != null){
-                            var tx = txs[0];
-                            var transactionObject = transaction.decode(Buffer.from(tx, 'base64'));
-                            console.log("HEIGHT :" + i + "operation : " + transactionObject.operation);
-
-                            let operation = transactionObject.operation;
-                            switch (operation) {
-
-                                case "create_account":
-
-                                    //add account to accounts col
-                                    db.accounts.create({
-                                        public_key: transactionObject.params.address,
-                                    });
-                                    break;
-
-                                case "post":
-                                    try {
-                                        let content = PlainTextContent.decode(transactionObject.params.content);
-                                        transactionObject.params.content = content;
-                                    }
-                                    catch (err) {
-                                        //console.log('post err data')
-                                    }
-
-                                    break;
-
-                                case "update_account":
-                                    let key = transactionObject.params.key;
-                                    let value = transactionObject.params.value;
-                                    //console.log(key);
-                                    switch (key) {
-                                        case "name":
-                                            //console.log("name");
-                                            transactionObject.params.value = value.toString('utf-8');
-                                            break;
-                                        case "picture":
-                                            //console.log("picture");
-                                            break;
-                                        case "followings":
-                                            //console.log("followings");
-                                            var followings = Followings.decode(value);
-                                            var addressesBuffer = followings.addresses;
-                                            var addresses = [];
-                                            for (var addressIndex = 0; addressIndex < addressesBuffer.length; addressIndex++) {
-                                                var address = base32.encode(addressesBuffer[addressIndex]);
-                                                addresses.push(address);
-                                            }
-                                            followings.addresses = addresses;
-                                            transactionObject.params.value = followings;
-                                            console.log(transactionObject);
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                    break;
-
-                                case "payment":
-                                    //console.log(payment);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        db.blockChainInfos.create({
-                            operation: transactionObject.operation,
-                            block_id: block_id,
-                            block:transactionObject,
-                            height: i,
-                        });
-                    }
-                }
-
-            }
-        }
-        catch(err)
-        {
-            console.error('error');
-        }
-    }
-
-}
-
-async function  connectNode(){
-
-    console.log('calling function connectNode()...');
-    try {
-        client.abciInfo().then(res => {
-            console.log(res);
-            let height = res.response.last_block_height;
-            console.log('heigth' + height);
-            getListBlockByHeight(height);
-
-        });
-    }
-    catch (e) {
-        console.log('err');
-    }
-}
-
-//connectNode();
-
+AppInit.initApp();
 
 
 app.get('/',function (req,res) {
@@ -220,85 +112,6 @@ app.get('/post', function (req, res) {
         })
     });
 });
-
-const listenForNewBlockFromNode = () =>{
-    client.subscribe({query: 'tm.envent=\'NewBlock\''}, (block) =>{
-       console.log(block);
-    });
-};
-
-
-const updateAccountsCollection = ()=>{
-    db.blockChainInfos.find({operation: {$in: ['post','update_account','payment']}}, function (err, elements) {
-        for(var eleIndex = 0; eleIndex < elements.length; eleIndex++){
-            let block = elements[eleIndex].block;
-            let accountPublicKey = block.account;
-
-            switch (block.operation) {
-                case "update_account":
-                    let key = block.params.key;
-                    let value = block.params.value;
-                    switch (key) {
-                        case "name":
-                                var conditions = { public_key: accountPublicKey };
-                                var update = { displayName: value};
-                                var options = { multi: true };
-
-                                db.accounts.update(conditions, update, options, (err,numAffected) =>{
-                                });
-                            break;
-                        case "followings":
-                            var conditions = { public_key: accountPublicKey };
-                            var update = { followings: value};
-                            var options = { multi: true };
-
-                            db.accounts.update(conditions, update, options, (err,numAffected) =>{
-                            });
-                            break;
-                        case "picture":
-                            var conditions = { public_key: accountPublicKey };
-                            var update = { avatar: value};
-                            var options = { multi: true };
-
-                            db.accounts.update(conditions, update, options, (err,numAffected) =>{
-                            });
-                            break;
-                    }
-                    break;
-                case "post":
-                    var conditions = { public_key: accountPublicKey };
-                    var update = { posts: block.params.content};
-                    var options = { multi: true };
-
-                    db.accounts.update(conditions, update, options, (err,numAffected) =>{
-                    });
-                    break;
-                case "payment":
-                    var conditions = { public_key: accountPublicKey };
-                    var update = { payments: block.params};
-                    var options = { multi: true };
-
-
-                    //update history
-                    db.accounts.update(conditions, update, options, (err,numAffected) =>{
-                        db.accounts.findOne(conditions, (err,doc)=>{
-                            console.log(doc);
-                        })
-                    });
-
-                    //update bandwidth
-
-                    //update energy
-                    break;
-                default:
-                    break;
-            }
-        }
-    });
-};
-
-updateAccountsCollection();
-//db.accounts.find({},(err,doc)=> console.log(doc));
 
 
 app.get('/update_account', function (req,res) {
