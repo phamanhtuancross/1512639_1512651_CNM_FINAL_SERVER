@@ -5,19 +5,18 @@ mongoose.connect('mongodb://localhost/BlockChainDatabase');
 
 //tạo Schema
 const blockChainInfosSchema = new mongoose.Schema({
-    operation: String,
     height: Number,
-    block_id: Object,
     block: Object,
 });
 
 const accountsSchema = new mongoose.Schema({
     public_key: String,
     displayName: String,
-    posts: [],
-    followings: [],
+    posts: [Object],
+    followings: [Object],
+    followers: [Object],
     avatar: Buffer,
-    payments:[],
+    payments:[Object],
     bandwidth: Number,
     bandwidthTime: Number,
     balance: Number,
@@ -44,7 +43,7 @@ const initGeneris = () => {
         height: 0,
     });
 };
-
+//
 //initGeneris();
 
 module.exports = {

@@ -38,7 +38,7 @@ async function getListBlockByHeight(height){
     let currentHeight = nodeInfo!=null && nodeInfo.length > 0 ? nodeInfo[0].height : 0;
 
     if(currentHeight <  height) {
-        db.nodeInfos.update(
+         db.nodeInfos.update(
             {_id: nodeInfo[0]._id},
             {height: height},
             {multi: true},
@@ -51,20 +51,36 @@ async function getListBlockByHeight(height){
         console.log("height :" + height);
 
         for (var i = currentHeight + 1; i <= height; i++) {
+        //for(var i = 0; i < 1; i++){
             try {
 
                 var result = await client.block({height: i});
                 if (result !== null) {
 
-                    let block_id = result.block_meta.block_id;
+
                     let data = result.block.data;
 
+                    //update bandwidth of account
                    updateBandwith(result.block);
+
                     if (data && data.txs != null) {
                         let txs = data.txs;
+                        let timeStamp = result.block.header.time;
 
 
                         if (txs != null) {
+
+                            //add block to db
+                            try {
+                                await db.blockChainInfos.create({
+                                    height: i,
+                                    block: result,
+                                });
+                            }
+                            catch (e) {
+                                console.log(e);
+                            }
+
                             var tx = txs[0];
                             var transactionObject = transaction.decode(Buffer.from(tx, 'base64'));
                             console.log("HEIGHT :" + i + "operation : " + transactionObject.operation);
@@ -85,13 +101,16 @@ async function getListBlockByHeight(height){
 
                                 case "post":
                                     try {
-                                        let content = PlainTextContent.decode(transactionObject.params.content);
-                                        transactionObject.params.content = content;
+                                        var content = PlainTextContent.decode(transactionObject.params.content);
 
-                                        var account = await db.accounts.findOne({public_key: transactionObject.account});
-                                        if (account) {
-                                            account.posts = account.posts.concat(content);
-                                            await  account.save();
+                                        var accountPost = await db.accounts.findOne({public_key: transactionObject.account});
+                                        if (accountPost) {
+                                            accountPost.posts = accountPost.posts.concat({
+                                                content: content,
+                                                time: timeStamp,
+
+                                            });
+                                            await accountPost.save();
                                         }
                                     }
                                     catch (err) {
@@ -103,25 +122,17 @@ async function getListBlockByHeight(height){
                                 case "update_account":
                                     let key = transactionObject.params.key;
                                     let value = transactionObject.params.value;
-                                    //console.log(key);
+                                    console.log(key);
+
                                     switch (key) {
                                         case "name":
                                             try {
-                                                db.accounts.findOne({public_key: transactionObject.account}, (err, doc) => {
-                                                    if (doc != null) {
-                                                        console.log("UPDATE NAME :");
-                                                        transactionObject.params.value = value.toString('utf-8');
 
-                                                        var conditions = {public_key: transactionObject.account};
-                                                        var update = {displayName: value.toString('utf-8')};
-                                                        var options = {multi: true};
-
-                                                        db.accounts.update(conditions, update, options, (err, numAffected) => {
-                                                        });
-                                                    }
-                                                });
-                                                //console.log("name");
-
+                                                var accountUpdate = await db.accounts.findOne({public_key: transactionObject.account});
+                                                if (accountUpdate != null) {
+                                                    accountUpdate.displayName = value.toString('utf-8');
+                                                    await accountUpdate.save();
+                                                }
                                             }
                                             catch (e) {
                                                 console.log(e);
@@ -130,51 +141,64 @@ async function getListBlockByHeight(height){
                                         case "picture":
                                             //console.log("picture");
                                             try {
-                                                var conditions = {public_key: transactionObject.account};
-                                                var update = {avatar: value};
-                                                var options = {multi: true};
+                                                var accountUpdate2 = await db.accounts.findOne({public_key: transactionObject.account});
+                                                if (accountUpdate2 != null) {
+                                                    accountUpdate2.avatar = value;
+                                                    await accountUpdate2.save();
+                                                }
 
-                                                db.accounts.update(conditions, update, options, (err, numAffected) => {
-                                                });
                                             }
                                             catch (e) {
                                                 console.log(e);
                                             }
                                             break;
-                                        case "followings":
-                                            //console.log("followings");
-                                            try {
-                                                var followings = Followings.decode(value);
-                                                var addressesBuffer = followings.addresses;
-                                                var addresses = [];
-                                                for (var addressIndex = 0; addressIndex < addressesBuffer.length; addressIndex++) {
-                                                    var address = base32.encode(addressesBuffer[addressIndex]);
-                                                    addresses.push(address);
+                                            case "followings":
+                                            var followings = Followings.decode(value);
+                                            console.log(followings);
+                                            for(var index = 0; index < followings.addresses.length; index++){
+                                                var address = base32.encode(followings.addresses[index]);
+                                                console.log(address);
+
+                                                let followingAccount = await db.accounts.findOne({public_key: address});
+                                                if(followingAccount){
+                                                    followingAccount.followers = followingAccount.followers.concat({
+                                                        medthod: "FOLLOWER",
+                                                        address: transactionObject.account,
+                                                        time: timeStamp,
+                                                    });
+
+                                                    console.log(followingAccount.followers);
+                                                    await followingAccount.save();
                                                 }
-                                                followings.addresses = addresses;
-                                                transactionObject.params.value = followings;
 
-                                                db.accounts.findOne({public_key: transactionObject.account}, (err, doc) => {
-                                                    if (doc != null) {
-                                                        let currentFollowings = doc.followings;
-                                                        let addingFolowings = transactionObject.params.value;
+                                                let followerAccount = await db.accounts.findOne({public_key: transactionObject.account});
+                                                if(followingAccount){
+                                                    followerAccount.followings = followerAccount.followings.concat({
+                                                        method: "FOLLOWING",
+                                                        address: address,
+                                                        time: timeStamp,
+                                                    });
+                                                    await followerAccount.save();
+                                                }}
+                                                break;
+                                            }
+                                            break;
+                                        case "payment":
+                                            try {
+                                                var paymentAccount = await db.accounts.findOne({public_key: transactionObject.account});
+                                                if (paymentAccount != null) {
+                                                    paymentAccount.payments = paymentAccount.payments.concat(transactionObject.params);
+                                                    paymentAccount.balance =  paymentAccount.balance - transactionObject.params.amount;
+                                                    await paymentAccount.save();
+                                                }
 
-                                                        let items = currentFollowings.concat(addingFolowings);
-                                                        let newFollowings = new HashSet();
+                                                var recivedAccount = await db.accounts.findOne({public_key: transactionObject.params.address});
+                                                if (recivedAccount != null) {
+                                                    recivedAccount.payments = recivedAccount.payments.concat(transactionObject.params);
+                                                    recivedAccount.balance =  recivedAccount.balance + transactionObject.params.amount;
+                                                    await recivedAccount.save();
+                                                }
 
-                                                        for (var i = 0; i < items.length; i++) {
-                                                            newFollowings.add(items[i]);
-                                                        }
-
-                                                        console.log(newFollowings.toArray());
-                                                        var conditions = {public_key: transactionObject.account};
-                                                        var update = {followings: newFollowings.toArray()};
-                                                        var options = {multi: true};
-
-                                                        db.accounts.update(conditions, update, options, (err, numAffected) => {
-                                                        });
-                                                    }
-                                                });
                                             }
                                             catch (e) {
                                                 console.log(e);
@@ -182,43 +206,9 @@ async function getListBlockByHeight(height){
                                             break;
                                         default:
                                             break;
-                                    }
-                                    break;
-
-                                case "payment":
-                                    try {
-                                        var paymentAccount = await db.accounts.findOne({public_key: transactionObject.account});
-                                            if (paymentAccount != null) {
-                                                paymentAccount.payments = paymentAccount.payments.concat(transactionObject.params);
-                                                paymentAccount.balance =  paymentAccount.balance - transactionObject.params.amount;
-                                                await paymentAccount.save();
-                                            }
-
-                                        var recivedAccount = await db.accounts.findOne({public_key: transactionObject.params.address});
-                                        if (recivedAccount != null) {
-                                            recivedAccount.payments = recivedAccount.payments.concat(transactionObject.params);
-                                            recivedAccount.balance =  recivedAccount.balance + transactionObject.params.amount;
-                                            await recivedAccount.save();
-                                        }
-
-                                    }
-                                    catch (e) {
-                                        console.log(e);
-                                    }
-                                    break;
-                                default:
-                                    break;
                             }
-
-                            db.blockChainInfos.create({
-                                operation: transactionObject.operation,
-                                block_id: block_id,
-                                block: transactionObject,
-                                height: i,
-                            });
                         }
                     }
-
                 }
             }
             catch (err) {
