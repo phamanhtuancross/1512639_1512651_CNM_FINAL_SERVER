@@ -13,13 +13,6 @@ const HashSet = require('hashset');
 const moment = require('moment');
 
 
-const ACCOUNT_INFO_API = 'tx_search?query=%22account=%27GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S%27%22';
-const ACCOUNT_PUBLIC_KEY = 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S';
-
-const ACCOUNT_SECRET_KEY          = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
-const PAYMENT_ADDRESS_FRIEND_TEST = 'GALFOH6JQ3KCEVCPVFXI4CKXXUAOZBIYHD2LVGYSO4MXBFGNC6IC652D';
-const PUBLIC_NODE_URL = "https://komodo.forest.network/";
-
 
 const MAX_CELLULOSE = Number.MAX_SAFE_INTEGER;
 const OXYGEN = 1;
@@ -30,10 +23,6 @@ const NETWORK_BANDWIDTH = RESERVE_RATIO * MAX_BLOCK_SIZE * BANDWIDTH_PERIOD;
 
 let client = RpcClient('wss://dragonfly.forest.network:443');
 
-const UpdateAccountParams = vstruct([
-    { name: 'key', type: vstruct.VarString(vstruct.UInt8) },
-    { name: 'value', type: vstruct.VarBuffer(vstruct.UInt16BE) },
-]);
 
 const PlainTextContent = vstruct([
     { name: 'type', type: vstruct.UInt8 },
@@ -285,7 +274,6 @@ const updateBandwith = async (currentBlock) =>{
 
                 // cập nhật mức năng lượng đã sử dụng mới (sau khi cộng thêm txSize)
                 account.bandwidth = Math.ceil(Math.max(0, (BANDWIDTH_PERIOD - diff) / BANDWIDTH_PERIOD) * account.bandwidth + txSize);
-
                 //kiểm tra năng lượng đã sử dụng mới có vượt quá mức năng lượng tối đa mà tài khoản có thể sử dụng
                 console.log("BANDWIDTH :"); console.log(account.bandwidth);
                 console.log("BANDWIDTH LIMIT :"); console.log(bandwidthLimit);
@@ -295,17 +283,17 @@ const updateBandwith = async (currentBlock) =>{
 
                 // Mọi thứ đều thỏa, cập nhật lần gần nhất sử dụng năng lượng và lưu vào db
                 account.bandwidthTime =  moment(currentBlock.header.time).unix();
-
+                account.sequence =  txObj.sequence;
                 await account.save();
             }
         }
     }
 };
 
-const initApp = () =>{
+const init = () =>{
   connectNode();
   listenForNewBlockFromNode();
 };
 
 
-module.exports = {initApp};
+module.exports = {init};

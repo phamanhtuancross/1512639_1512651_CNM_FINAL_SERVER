@@ -1,23 +1,20 @@
 {
-  "name": "cnm_express_server",
-  "version": "1.0.0",
-  "description": "this is server for final test",
-  "main": "index.js",
+  "name": "server",
+  "version": "0.0.0",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node ./bin/www"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "axios": "^0.18.0",
-    "base32": "0.0.6",
-    "base32.js": "^0.1.0",
-    "express": "^4.16.4",
+    "cookie-parser": "~1.4.3",
+    "debug": "~2.6.9",
+    "express": "~4.16.0",
     "hashset": "0.0.6",
-    "jquery": "^3.3.1",
+    "http-errors": "~1.6.2",
     "moment": "^2.23.0",
     "mongoose": "^5.4.0",
-    "nodemon": "^1.18.9",
+    "morgan": "~1.9.0",
+    "pug": "2.0.0-beta11",
     "stellar-base": "^0.10.0",
     "tendermint": "^3.4.0",
     "varstruct": "^6.1.2"

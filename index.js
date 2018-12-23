@@ -34,23 +34,24 @@ const Followings = vstruct([
     { name: 'addresses', type: vstruct.VarArray(vstruct.UInt16BE, vstruct.Buffer(35)) },
 ]);
 
-app.listen(3000);
-
-
-// db.accounts.findOne({public_key: 'GAJQ47RMDTXYTCBMMW4A4DUMTB5RQLTGQZDMMABW6RTQJGKINJ4JTRTP'}, (err,doc) =>
-// console.log(doc.payments[0])
-// );
+// Config access different port
+app.all('*', function(req, res, next) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
+    res.setHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, public_key");
+    next();
+});
 
 AppInit.initApp();
 
 
 app.get('/',function (req,res) {
+    let accoutSecretKey =  'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
 
 });
 
-async function getAccountInfoByKey(acoountPublicKey){
 
-}
 
 async function getFriendPosts(){
 
@@ -80,9 +81,12 @@ app.get('/posts',function (req,res) {
     getFriendPosts().then(resutl => {
         res.send(resutl);
     });
-
 });
 
+app.post('/login',function (req,res) {
+    console.log('request data'); console.log(req);
+    res.send('ok');
+});
 
 
 app.get('/create_account', function (req, res) {
@@ -113,7 +117,6 @@ app.get('/post', function (req, res) {
     });
 });
 
-
 app.get('/update_account', function (req,res) {
     var getLastSequcencePromise =  getLastSequence();
     getLastSequcencePromise.then(function (lastSequence) {
@@ -140,8 +143,10 @@ function createAccount(lastSequence){
 
     transaction.sign(tx, 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR');
     transaction.sign(tx,ACCOUNT_SECRET_KEY);
-    var data_encoding = '0x' + transaction.encode(tx).toString('hex');
-    var url = 'https://komodo.forest.network/broadcast_tx_commit?tx=' + data_encoding;
+    var data_encoding = transaction.encode(tx).toString('base64');
+    var result = client.broadcastTxCommit({
+        tx: data_encoding,
+    });
 
     return new Promise((resolve, reject) =>{
             axios.get(url).then(response=>{
@@ -258,5 +263,7 @@ function updateAccount(lastSequence){
         }
     );
 }
+
+
 
 
