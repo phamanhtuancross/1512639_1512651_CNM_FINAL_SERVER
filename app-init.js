@@ -161,24 +161,48 @@ async function getListBlockByHeight(height){
 
                                                 let followingAccount = await db.accounts.findOne({public_key: address});
                                                 if(followingAccount){
-                                                    followingAccount.followers = followingAccount.followers.concat({
+                                                    var follower = {
                                                         medthod: "FOLLOWER",
-                                                        address: transactionObject.account,
-                                                        time: timeStamp,
-                                                    });
+                                                        address: transactionObject.account
+                                                    };
 
-                                                    console.log(followingAccount.followers);
-                                                    await followingAccount.save();
+                                                    var isExistFollower = false;
+                                                    for(var followerIndex = 0; followerIndex < followingAccount.followers.length; followerIndex++){
+                                                        let existfollower = followingAccount.followers[followerIndex];
+                                                        if(existfollower.address === follower.address){
+                                                            isExistFollower = true;
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    if(isExistFollower === false) {
+                                                        followingAccount.followers = followingAccount.followers.concat(follower);
+                                                        console.log(followingAccount.followers);
+                                                        await followingAccount.save();
+                                                    }
                                                 }
 
                                                 let followerAccount = await db.accounts.findOne({public_key: transactionObject.account});
                                                 if(followingAccount){
-                                                    followerAccount.followings = followerAccount.followings.concat({
+                                                    var following = {
                                                         method: "FOLLOWING",
                                                         address: address,
-                                                        time: timeStamp,
-                                                    });
-                                                    await followerAccount.save();
+                                                    };
+
+                                                    var isExistFollowing = false;
+                                                    for(var followingIndex = 0; followingIndex < followingAccount.followings.length; followingIndex++){
+                                                        var existfollowing = followingAccount.followings[followingIndex];
+                                                        if(existfollowing.address === following.address){
+                                                            isExistFollowing = true;
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    if(isExistFollowing === false) {
+                                                        followerAccount.followings = followerAccount.followings.concat(following);
+                                                        console.log(following);
+                                                        await followerAccount.save();
+                                                    }
                                                 }}
                                                 break;
                                             }

@@ -8,6 +8,8 @@ var appInit = require('./app-init');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var accountRouter = require('./routes/account');
+var db = require('./db');
+var _ = require('lodash');
 
 var app = express();
 app.all('*', function(req, res, next) {
@@ -50,5 +52,8 @@ app.use(function(err, req, res, next) {
 });
 
 appInit.init();
+
+
+//getListFollersByPublicKey('GAO4J5RXQHUVVONBDQZSRTBC42E3EIK66WZA5ZSGKMFCS6UNYMZSIDBI');
 
 module.exports = app;
