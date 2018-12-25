@@ -6,33 +6,14 @@ var  app = express();
 var axios = require('axios');
 const { Keypair } = require('stellar-base');
 const vstruct = require('varstruct');
-const mongoose = require('mongoose');
-const base32 = require('base32.js');
-const $ = require('jquery');
-const HashSet = require('hashset');
 const AppInit = require('./app-init');
 
 
-const ACCOUNT_INFO_API = 'tx_search?query=%22account=%27GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S%27%22';
 const ACCOUNT_PUBLIC_KEY = 'GBH6HEN6KMDTI3TDD4EINUYJCG3AS6N5YROE2XNBETY2SSOWB3CYRH7S';
-
 const ACCOUNT_SECRET_KEY          = 'SB4BGT5YZY3FIRAGTYMHYKHPUTUY4BWNHAPMVJVFHRQDTSQBWIVMY6CR';
 const PAYMENT_ADDRESS_FRIEND_TEST = 'GALFOH6JQ3KCEVCPVFXI4CKXXUAOZBIYHD2LVGYSO4MXBFGNC6IC652D';
-const PUBLIC_NODE_URL = "https://komodo.forest.network/";
+
 let client = RpcClient('wss://dragonfly.forest.network:443');
-const UpdateAccountParams = vstruct([
-    { name: 'key', type: vstruct.VarString(vstruct.UInt8) },
-    { name: 'value', type: vstruct.VarBuffer(vstruct.UInt16BE) },
-]);
-
-const PlainTextContent = vstruct([
-    { name: 'type', type: vstruct.UInt8 },
-    { name: 'text', type: vstruct.VarString(vstruct.UInt16BE) },
-]);
-
-const Followings = vstruct([
-    { name: 'addresses', type: vstruct.VarArray(vstruct.UInt16BE, vstruct.Buffer(35)) },
-]);
 
 // Config access different port
 app.all('*', function(req, res, next) {

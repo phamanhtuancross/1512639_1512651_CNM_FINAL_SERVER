@@ -190,7 +190,7 @@ async function getListBlockByHeight(height){
                                                     };
 
                                                     var isExistFollowing = false;
-                                                    for(var followingIndex = 0; followingIndex < followingAccount.followings.length; followingIndex++){
+                                                    for(var followingIndex = 0; followingIndex < followerAccount.followings.length; followingIndex++){
                                                         var existfollowing = followingAccount.followings[followingIndex];
                                                         if(existfollowing.address === following.address){
                                                             isExistFollowing = true;

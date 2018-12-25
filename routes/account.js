@@ -12,6 +12,13 @@ router.post('/login', async function(req, res, next) {
     res.send({status: result});
 });
 
+router.post('/getAccountInfo', async function(req,res,next) {
+    let public_key = req.body.public_key;
+    let account = await db.accounts.findOne({public_key: public_key});
+    console.log(account);
+    res.send(account);
+});
+
 router.post('/followers', async function(req, res, next){
     let public_key = req.body.public_key;
     let listFollowers = await getListFollersByPublicKey(public_key);
@@ -27,14 +34,57 @@ router.post('/followings', async function(req, res, next){
 
 });
 
-router.post('/followingAccount', async function(req,res, next) {
-   let transaction = req.body.transaction_data;
+router.post('/updateAccount', async function(req,res, next) {
+   let tx = req.body.tx;
+   console.log(tx);
    var result = await client.broadcastTxCommit({
-        tx: transaction,
+        tx: tx,
    });
 
-   return result;
+   console.log(result);
+   res.send(result);
 });
+
+
+router.post('/payment', async function(req, res, next){
+    let tx = req.body.tx;
+    console.log(tx);
+    var result = await client.broadcastTxCommit({
+        tx: tx,
+    });
+
+    console.log(result);
+    res.send(result);
+});
+
+router.post('/post', async function (req,res,next) {
+    let tx = req.body.tx;
+    console.log(tx);
+    var result = await client.broadcastTxCommit({
+        tx: tx,
+    });
+
+    console.log(result);
+    res.send(result);
+});
+
+
+
+
+
+router.post('/lastSequence', async function(req, res,) {
+    let sequence = await  getAccountLastSequence(req.body.public_key);
+    res.send({sequence : sequence});
+});
+
+const getAccountLastSequence = async (publicKey) =>{
+  var account = await db.accounts.findOne({public_key: publicKey});
+  if(account){
+      return account.sequence;
+  }
+
+  return -1;
+};
 
 const checkIsValidAccount = async (public_key) =>{
   let result = await db.accounts.findOne({public_key: public_key});
@@ -95,6 +145,5 @@ const getListFollowingsByPublicKey = async (public_key) =>{
     }
     return [];
 };
-
 
 module.exports = router;
