@@ -211,14 +211,22 @@ async function getListBlockByHeight(height){
                                             try {
                                                 var paymentAccount = await db.accounts.findOne({public_key: transactionObject.account});
                                                 if (paymentAccount != null) {
-                                                    paymentAccount.payments = paymentAccount.payments.concat(transactionObject.params);
+                                                    paymentAccount.payments = paymentAccount.payments.concat({
+                                                        time: timeStamp,
+                                                        type: "SEND",
+                                                        data: transactionObject.params
+                                                    });
                                                     paymentAccount.balance =  paymentAccount.balance - transactionObject.params.amount;
                                                     await paymentAccount.save();
                                                 }
 
                                                 var recivedAccount = await db.accounts.findOne({public_key: transactionObject.params.address});
                                                 if (recivedAccount != null) {
-                                                    recivedAccount.payments = recivedAccount.payments.concat(transactionObject.params);
+                                                    recivedAccount.payments = recivedAccount.payments.concat({
+                                                        time: timeStamp,
+                                                        type: "RECEIVE",
+                                                        data: transactionObject.params
+                                                    });
                                                     recivedAccount.balance =  recivedAccount.balance + transactionObject.params.amount;
                                                     await recivedAccount.save();
                                                 }

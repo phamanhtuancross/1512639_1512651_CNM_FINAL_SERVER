@@ -9,6 +9,7 @@ let client = RpcClient('wss://dragonfly.forest.network:443');
 router.post('/login', async function(req, res, next) {
     let public_key = req.body.public_key;
     var result = await checkIsValidAccount(public_key);
+    console.log(result);
     res.send({status: result});
 });
 
@@ -45,6 +46,31 @@ router.post('/updateAccount', async function(req,res, next) {
    res.send(result);
 });
 
+router.post('/listForFollowings', async function (req,res, next){
+    let public_key = req.body.public_key;
+    console.log("PUBLICKEY : " + public_key);
+
+
+    let account = await db.accounts.find({public_key: public_key});
+    let topAccount = await  db.accounts.find({});
+   console.log("FOLLOWED DATA");
+    // for(var accountIndex = 0; accountIndex < 50; accountIndex++){
+    //     var currentAccount = topAccount[accountIndex];
+    //
+    //     var isFollowed = false;
+    //     for(var i = 0; i < listFollowed.length; i++){
+    //         if(currentAccount.public_key === listFollowed[i].address){
+    //             isFollowed = true;
+    //             break;
+    //         }
+    //     }
+    //
+    //     if(!isFollowed){
+    //         listReuslt.push(currentAccount);
+    //     }
+    // }
+    res.send(topAccount.slice(1,50));
+});
 
 router.post('/payment', async function(req, res, next){
     let tx = req.body.tx;
@@ -53,8 +79,13 @@ router.post('/payment', async function(req, res, next){
         tx: tx,
     });
 
-    console.log(result);
-    res.send(result);
+    var status = 0;
+    console.log("CURRENT HEIGHT : " + result.height);
+    if(result.height > 0){
+        status = 1;
+    }
+    console.log("STATUS :" + status);
+    res.send({status: status});
 });
 
 router.post('/post', async function (req,res,next) {
@@ -64,8 +95,8 @@ router.post('/post', async function (req,res,next) {
         tx: tx,
     });
 
-    console.log(result);
-    res.send(result);
+    var status = 1;
+    res.send({status: status});
 });
 
 
@@ -145,5 +176,7 @@ const getListFollowingsByPublicKey = async (public_key) =>{
     }
     return [];
 };
+
+
 
 module.exports = router;
